@@ -165,10 +165,12 @@ function App() {
 
     try {
       setLoading(true);
-
+  // "http://localhost:5000/api/analyze",
+  // formData
+      
       const res = await axios.post(
-  "http://localhost:5000/api/analyze",
-  formData
+"https://airesumeanalyser-xucr.onrender.com/analyze", formData
+
 );
 
 
