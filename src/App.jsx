@@ -169,7 +169,7 @@ function App() {
   // formData
       
       const res = await axios.post(
-"https://airesumeanalyser-xucr.onrender.com/analyze", formData
+"https://airesumeanalyser-xucr.onrender.com/api/analyze", formData
 
 );
 
