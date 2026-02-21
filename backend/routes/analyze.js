@@ -2,10 +2,9 @@
 import express from "express";
 import Groq from "groq-sdk";
 import multer from "multer";
-import pdf from "pdf-parse";
+import pdf from "pdf-parse/lib/pdf-parse.js"; // ✅ FIXED
 import dotenv from "dotenv";
 import User from "../modals/User.js";
-
 dotenv.config();
 const router = express.Router();
 
