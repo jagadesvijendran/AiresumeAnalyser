@@ -132,31 +132,70 @@
 
 // <---------------------------------------------------------->last final working version
 
+// import express from "express";
+// import cors from "cors";
+// import mongoose from "mongoose";
+// import loginroute from "./routes/loginroutes.js";
+// import analyzeRoute from "./routes/analyze.js";
+
+
+
+// const app = express();
+// app.use(cors());
+// app.use(express.json());
+
+// // ✅ VERY IMPORTANT
+// app.use("/api/login", loginroute);
+// app.use("/api/analyze", analyzeRoute);
+
+// mongoose.connect(process.env.MONGO_URI)
+// .then(() => console.log("✅ MongoDB Connected"))
+// .catch(err => console.log("❌ Mongo Error:", err));
+
+
+
+// app.listen(5000, () => {
+// console.log("SERVER RUNNING ON http://localhost:5000");
+// });
+
+
+// <-------------------------------------------------------->
+
+// last update
+
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+
 import loginroute from "./routes/loginroutes.js";
 import analyzeRoute from "./routes/analyze.js";
 
-
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ VERY IMPORTANT
+/* ✅ HEALTH CHECK ROUTE — ADD HERE */
+app.get("/", (req, res) => {
+  res.send("API Running ✅");
+});
+
+/* ROUTES */
 app.use("/api/login", loginroute);
 app.use("/api/analyze", analyzeRoute);
 
+/* DB */
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("✅ MongoDB Connected"))
-.catch(err => console.log("❌ Mongo Error:", err));
+.then(()=> console.log("Mongo Connected"))
+.catch(err=> console.log(err));
+
+/* SERVER */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, ()=> console.log("Server running", PORT));
 
 
-
-app.listen(5000, () => {
-console.log("SERVER RUNNING ON http://localhost:5000");
-});
 
 
 
