@@ -175,10 +175,12 @@ function App() {
 
 
       setResult(res.data);
-    } catch (err) {
-      alert("Session expired. Please login again.");
-      logout();
-    } finally {
+    } 
+    catch (err) {
+  console.error(err);
+  alert("Error analyzing resume. Backend not responding.");
+}
+    finally {
       setLoading(false);
     }
   };
