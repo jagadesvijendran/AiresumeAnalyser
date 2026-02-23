@@ -168,9 +168,15 @@ function App() {
   // "http://localhost:5000/api/analyze",
   // formData
       
-      const res = await axios.post(
-"https://airesumeanalyser-xucr.onrender.com/api/analyze", formData
+//       const res = await axios.post(
+// "https://airesumeanalyser-xucr.onrender.com/api/analyze", formData
 
+// );
+// last update
+      const res = await axios.post(
+  "https://airesumeanalyser-xucr.onrender.com/api/analyze",
+  formData,
+  { timeout: 60000 } // 60 seconds
 );
 
 
