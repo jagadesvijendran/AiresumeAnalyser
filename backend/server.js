@@ -185,7 +185,7 @@ app.get("/", (req, res) => {
 /* ROUTES */
 app.use("/api/login", loginroute);
 app.use("/api/analyze", analyzeRoute);
-
+app.use(express.urlencoded({ extended: true }));
 /* DB */
 mongoose.connect(process.env.MONGO_URI)
 .then(()=> console.log("Mongo Connected"))
