@@ -1,19 +1,20 @@
-// Last update
+//Last Update//
 import express from "express";
 import Groq from "groq-sdk";
 import multer from "multer";
-import pdf from "pdf-parse/lib/pdf-parse.js"; // ✅ FIXED
+import pdf from "pdf-parse/lib/pdf-parse.js";
 import dotenv from "dotenv";
 import User from "../modals/User.js";
+
 dotenv.config();
 const router = express.Router();
 
 /* ===========================
-   FILE UPLOAD
+   MULTER CONFIG
 =========================== */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 /* ===========================
@@ -26,173 +27,367 @@ const groq = new Groq({
 /* ===========================
    SAFE JSON PARSER
 =========================== */
-function safeJSON(text) {
-  try {
-    const json = text.substring(
-      text.indexOf("{"),
-      text.lastIndexOf("}") + 1
-    );
-    return JSON.parse(json);
-  } catch {
-    return null;
+function safeJSON(text){
+  if(!text) return null;
+  try{
+    return JSON.parse(text);
+  }catch{
+    try{
+      const match = text.match(/\{[\s\S]*\}/);
+      return match ? JSON.parse(match[0]) : null;
+    }catch{
+      return null;
+    }
   }
 }
 
 /* ===========================
    CLEAN NAME
 =========================== */
-function cleanName(name) {
-  if (!name) return "Unknown";
+function cleanName(name){
+  if(!name) return "Unknown";
 
   name = name
-    .replace(/[\n\r]/g, "")
-    .replace(/[^a-zA-Z.\s]/g, "")
+    .replace(/[\n\r]/g,"")
+    .replace(/[^a-zA-Z.\s]/g,"")
     .trim();
 
-  if (name.length < 3) return "Unknown";
+  if(name.length < 3) return "Unknown";
 
-  if (
-    name.toLowerCase().includes("resume") ||
-    name.toLowerCase().includes("curriculum") ||
-    name.toLowerCase().includes("vitae")
-  ) {
-    return "Unknown";
-  }
+  const lower = name.toLowerCase();
+  if(
+    lower.includes("resume") ||
+    lower.includes("curriculum") ||
+    lower.includes("vitae")
+  ) return "Unknown";
 
   return name;
 }
 
 /* ===========================
+   EXTRACT SKILLS FROM JOB DESC
+=========================== */
+function extractJobSkills(text){
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s+#.]/g,"")
+    .split(/\s+/)
+    .filter(word => word.length > 2);
+}
+
+function unique(arr){
+  return [...new Set(arr)];
+}
+
+/* ===========================
    ROUTE
 =========================== */
-router.post("/", upload.single("resume"), async (req, res) => {
-  try {
-    /* ---------- FILE CHECK ---------- */
-    if (!req.file) {
-      return res.status(400).json({ error: "Resume file missing" });
-    }
+router.post("/", upload.single("resume"), async (req,res)=>{
+  try{
 
-    if (req.file.mimetype !== "application/pdf") {
-      return res.status(400).json({ error: "Only PDF allowed" });
-    }
+    /* ---------- FILE CHECK ---------- */
+    if(!req.file)
+      return res.status(400).json({ error:"Resume file missing" });
+
+    if(req.file.mimetype !== "application/pdf")
+      return res.status(400).json({ error:"Only PDF allowed" });
 
     const jobDesc = req.body.jobDesc || "";
 
-    /* ---------- PDF TEXT ---------- */
+    /* ---------- PDF READ ---------- */
     let resumeText = "";
-    try {
+
+    try{
       const data = await pdf(req.file.buffer);
       resumeText = data.text;
-    } catch {
-      return res.status(400).json({
-        error: "PDF read failed"
-      });
+    }catch(err){
+      console.log("PDF ERROR:", err.message);
+      return res.status(400).json({ error:"PDF read failed" });
     }
+
+    if(!resumeText || resumeText.length < 20)
+      return res.status(400).json({ error:"Empty resume text" });
 
     /* ---------- NAME EXTRACTION ---------- */
     let username = "Unknown";
 
-    try {
-      const namePrompt = `
-Return JSON only
+    try{
+      const prompt = `
+Return ONLY JSON
 {"name":""}
 
 Resume:
 ${resumeText}
 `;
 
-      const nameRes = await groq.chat.completions.create({
-        model: "llama-3.1-8b-instant",
-        temperature: 0,
-        messages: [{ role: "user", content: namePrompt }]
+      const ai = await groq.chat.completions.create({
+        model:"llama-3.1-8b-instant",
+        temperature:0,
+        messages:[{ role:"user", content: prompt }]
       });
 
-      const parsed = safeJSON(
-        nameRes.choices?.[0]?.message?.content || ""
-      );
+      const raw = ai.choices?.[0]?.message?.content;
+      console.log("NAME RAW:", raw);
 
-      if (parsed?.name)
+      const parsed = safeJSON(raw);
+
+      if(parsed?.name)
         username = cleanName(parsed.name);
-    } catch {
-      username = "Unknown";
+
+    }catch(err){
+      console.log("Name AI error:", err.message);
     }
 
-    /* ---------- SKILL ANALYSIS ---------- */
-    let aiResult = {
-      matchedSkills: [],
-      missingSkills: [],
-      suggestions: []
-    };
+    /* ===========================
+       SKILL MATCH ENGINE
+    =========================== */
 
-    try {
-      const skillPrompt = `
-Return JSON only
-{
-"matchedSkills":[],
-"missingSkills":[],
-"suggestions":[]
-}
+    const jobSkills = unique(extractJobSkills(jobDesc));
 
-Resume:
-${resumeText}
+    const resumeLower = resumeText.toLowerCase();
 
-Job:
-${jobDesc}
-`;
+    const matchedSkills = jobSkills.filter(skill =>
+      resumeLower.includes(skill)
+    );
 
-      const result = await groq.chat.completions.create({
-        model: "llama-3.1-8b-instant",
-        temperature: 0.2,
-        messages: [{ role: "user", content: skillPrompt }]
-      });
+    const missingSkills = jobSkills.filter(skill =>
+      !resumeLower.includes(skill)
+    );
 
-      const parsed = safeJSON(
-        result.choices?.[0]?.message?.content || ""
-      );
-
-      if (parsed) aiResult = parsed;
-    } catch (err) {
-      console.log("AI failed:", err.message);
-    }
+    const suggestions = missingSkills.map(skill =>
+      `Add ${skill} experience to your resume`
+    );
 
     /* ---------- ATS SCORE ---------- */
-    const matched = aiResult.matchedSkills.length;
-    const missing = aiResult.missingSkills.length;
+    const matched = matchedSkills.length;
+    const missing = missingSkills.length;
     const total = matched + missing;
 
     const atsScore =
       total === 0 ? 0 : Math.round((matched / total) * 100);
 
     /* ---------- SAVE DB ---------- */
-    try {
-      await User.create({
-        username,
-        atsScore
-      });
-    } catch (dbErr) {
-      console.log("DB save error:", dbErr.message);
+    try{
+      await User.create({ username, atsScore });
+    }catch(err){
+      console.log("DB error:", err.message);
     }
 
     /* ---------- RESPONSE ---------- */
     res.json({
       username,
       atsScore,
-      matchedSkills: aiResult.matchedSkills,
-      missingSkills: aiResult.missingSkills,
-      suggestions: aiResult.suggestions
+      matchedSkills,
+      missingSkills,
+      suggestions
     });
 
-  } catch (err) {
+  }catch(err){
     console.error("SERVER ERROR:", err);
 
     res.status(500).json({
-      error: "Server crashed",
+      error:"Server crashed",
       details: err.message
     });
   }
 });
 
 export default router;
+
+// import express from "express";
+// import Groq from "groq-sdk";
+// import multer from "multer";
+// import pdf from "pdf-parse/lib/pdf-parse.js"; // ✅ FIXED
+// import dotenv from "dotenv";
+// import User from "../modals/User.js";
+// dotenv.config();
+// const router = express.Router();
+
+// /* ===========================
+//    FILE UPLOAD
+// =========================== */
+// const upload = multer({
+//   storage: multer.memoryStorage(),
+//   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+// });
+
+// /* ===========================
+//    GROQ CLIENT
+// =========================== */
+// const groq = new Groq({
+//   apiKey: process.env.GROQ_API_KEY
+// });
+
+// /* ===========================
+//    SAFE JSON PARSER
+// =========================== */
+// function safeJSON(text) {
+//   try {
+//     const json = text.substring(
+//       text.indexOf("{"),
+//       text.lastIndexOf("}") + 1
+//     );
+//     return JSON.parse(json);
+//   } catch {
+//     return null;
+//   }
+// }
+
+// /* ===========================
+//    CLEAN NAME
+// =========================== */
+// function cleanName(name) {
+//   if (!name) return "Unknown";
+
+//   name = name
+//     .replace(/[\n\r]/g, "")
+//     .replace(/[^a-zA-Z.\s]/g, "")
+//     .trim();
+
+//   if (name.length < 3) return "Unknown";
+
+//   if (
+//     name.toLowerCase().includes("resume") ||
+//     name.toLowerCase().includes("curriculum") ||
+//     name.toLowerCase().includes("vitae")
+//   ) {
+//     return "Unknown";
+//   }
+
+//   return name;
+// }
+
+// /* ===========================
+//    ROUTE
+// =========================== */
+// router.post("/", upload.single("resume"), async (req, res) => {
+//   try {
+//     /* ---------- FILE CHECK ---------- */
+//     if (!req.file) {
+//       return res.status(400).json({ error: "Resume file missing" });
+//     }
+
+//     if (req.file.mimetype !== "application/pdf") {
+//       return res.status(400).json({ error: "Only PDF allowed" });
+//     }
+
+//     const jobDesc = req.body.jobDesc || "";
+
+//     /* ---------- PDF TEXT ---------- */
+//     let resumeText = "";
+//     try {
+//       const data = await pdf(req.file.buffer);
+//       resumeText = data.text;
+//     } catch {
+//       return res.status(400).json({
+//         error: "PDF read failed"
+//       });
+//     }
+
+//     /* ---------- NAME EXTRACTION ---------- */
+//     let username = "Unknown";
+
+//     try {
+//       const namePrompt = `
+// Return JSON only
+// {"name":""}
+
+// Resume:
+// ${resumeText}
+// `;
+
+//       const nameRes = await groq.chat.completions.create({
+//         model: "llama-3.1-8b-instant",
+//         temperature: 0,
+//         messages: [{ role: "user", content: namePrompt }]
+//       });
+
+//       const parsed = safeJSON(
+//         nameRes.choices?.[0]?.message?.content || ""
+//       );
+
+//       if (parsed?.name)
+//         username = cleanName(parsed.name);
+//     } catch {
+//       username = "Unknown";
+//     }
+
+//     /* ---------- SKILL ANALYSIS ---------- */
+//     let aiResult = {
+//       matchedSkills: [],
+//       missingSkills: [],
+//       suggestions: []
+//     };
+
+//     try {
+//       const skillPrompt = `
+// Return JSON only
+// {
+// "matchedSkills":[],
+// "missingSkills":[],
+// "suggestions":[]
+// }
+
+// Resume:
+// ${resumeText}
+
+// Job:
+// ${jobDesc}
+// `;
+
+//       const result = await groq.chat.completions.create({
+//         model: "llama-3.1-8b-instant",
+//         temperature: 0.2,
+//         messages: [{ role: "user", content: skillPrompt }]
+//       });
+
+//       const parsed = safeJSON(
+//         result.choices?.[0]?.message?.content || ""
+//       );
+
+//       if (parsed) aiResult = parsed;
+//     } catch (err) {
+//       console.log("AI failed:", err.message);
+//     }
+
+//     /* ---------- ATS SCORE ---------- */
+//     const matched = aiResult.matchedSkills.length;
+//     const missing = aiResult.missingSkills.length;
+//     const total = matched + missing;
+
+//     const atsScore =
+//       total === 0 ? 0 : Math.round((matched / total) * 100);
+
+//     /* ---------- SAVE DB ---------- */
+//     try {
+//       await User.create({
+//         username,
+//         atsScore
+//       });
+//     } catch (dbErr) {
+//       console.log("DB save error:", dbErr.message);
+//     }
+
+//     /* ---------- RESPONSE ---------- */
+//     res.json({
+//       username,
+//       atsScore,
+//       matchedSkills: aiResult.matchedSkills,
+//       missingSkills: aiResult.missingSkills,
+//       suggestions: aiResult.suggestions
+//     });
+
+//   } catch (err) {
+//     console.error("SERVER ERROR:", err);
+
+//     res.status(500).json({
+//       error: "Server crashed",
+//       details: err.message
+//     });
+//   }
+// });
+
+// export default router;
 
 
 // <-------------------------------------------------->
