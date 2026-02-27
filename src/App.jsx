@@ -152,7 +152,6 @@ const [result, setResult] = useState({
   matchedSkills: [],
   missingSkills: [],
   suggestions: [],
-  summary: "",
   atsScore: 0,
 });
 
@@ -266,9 +265,7 @@ const [result, setResult] = useState({
   </>
 )}
 
-          <p>
-            <b>Summary:</b> {result.summary || "No summary available"}
-          </p>
+    
         </div>
       )}
 
