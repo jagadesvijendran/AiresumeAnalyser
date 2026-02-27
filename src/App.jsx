@@ -180,15 +180,29 @@ const [result, setResult] = useState({
 // "https://airesumeanalyser-xucr.onrender.com/api/analyze", formData
 
 // );
-// last update
-      const res = await axios.post(
+
+//       const res = await axios.post(
+//   "https://airesumeanalyser-xucr.onrender.com/api/analyze",
+//   formData,
+//   { timeout: 60000 } // 60 seconds
+// );
+
+
+      // setResult(res.data);
+
+// last update    
+const res = await axios.post(
   "https://airesumeanalyser-xucr.onrender.com/api/analyze",
   formData,
-  { timeout: 60000 } // 60 seconds
+  { timeout: 60000 }
 );
 
+console.log("API RESPONSE:", res.data); // ⭐ ADD THIS
 
-      setResult(res.data);
+setResult(res.data);
+
+
+      
     } 
     catch (err) {
   console.error(err);
