@@ -201,6 +201,9 @@ IMPORTANT RULES:
 - Do NOT use general knowledge.
 - Do NOT guess.
 - Be strict and accurate.
+Suggestions Rule:
+- For each missing skill, give one practical improvement suggestion.
+- Suggestions must be based ONLY on missingSkills.
 
 RETURN ONLY JSON:
 
