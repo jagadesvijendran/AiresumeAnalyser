@@ -190,6 +190,22 @@ ${resumeText}
       details: err.message
     });
   }
+   //last update---for console output
+   console.log("FINAL RESPONSE:", {
+  username,
+  atsScore,
+  matchedSkills,
+  missingSkills,
+  suggestions
+});
+
+res.json({
+  username,
+  atsScore,
+  matchedSkills,
+  missingSkills,
+  suggestions
+});
 });
 
 export default router;
