@@ -142,12 +142,21 @@ import "./App.css";
 function App() {
   const [resume, setResume] = useState(null);
   const [jobDesc, setJobDesc] = useState("");
-  const [result, setResult] = useState({
-    matchedSkills: [],
-    missingSkills: [],
-    summary: "",
-    atsScore: 0,
-  });
+  // const [result, setResult] = useState({
+  //   matchedSkills: [],
+  //   missingSkills: [],
+  //   summary: "",
+  //   atsScore: 0,
+  // });
+const [result, setResult] = useState({
+  matchedSkills: [],
+  missingSkills: [],
+  suggestions: [],
+  summary: "",
+  atsScore: 0,
+});
+
+  
   const [loading, setLoading] = useState(false);
 
 
@@ -247,6 +256,15 @@ function App() {
               ? result.missingSkills.map((s, i) => <li key={i}>{s}</li>)
               : <li>No missing skills</li>}
           </ul>
+
+          {result.suggestions?.length > 0 && (
+  <>
+    <h4>Suggestions</h4>
+    <ul>
+      {result.suggestions.map((s,i)=><li key={i}>{s}</li>)}
+    </ul>
+  </>
+)}
 
           <p>
             <b>Summary:</b> {result.summary || "No summary available"}
