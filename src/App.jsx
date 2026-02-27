@@ -194,7 +194,8 @@ const [result, setResult] = useState({
 const res = await axios.post(
   "https://airesumeanalyser-xucr.onrender.com/api/analyze",
   formData,
-  { timeout: 60000 }
+  // { timeout: 60000 }
+  { timeout: 120000 }
 );
 
 console.log("API RESPONSE:", res.data); // ⭐ ADD THIS
