@@ -152,12 +152,57 @@ router.post("/", upload.single("resume"), async (req,res)=>{
         FULL AI ANALYSIS PROMPT
     =================================================== */
 
-    const prompt = `
-You are an ATS Resume Analyzer AI.
+//     const prompt = `
+// You are an ATS Resume Analyzer AI.
 
-Compare the RESUME and JOB DESCRIPTION.
+// Compare the RESUME and JOB DESCRIPTION.
 
-Return ONLY JSON format:
+// Return ONLY JSON format:
+
+// {
+//  "username":"",
+//  "atsScore": number (0-100),
+//  "matchedSkills":[],
+//  "missingSkills":[],
+//  "suggestions":[]
+// }
+
+// Rules:
+// - Extract candidate name from resume
+// - Identify real skills only
+// - Ignore filler words
+// - Score based on relevance match
+// - Suggestions must be practical
+
+// RESUME:
+// ${resumeText}
+
+// JOB DESCRIPTION:
+// ${jobDesc}
+// `;
+
+
+
+//Last update
+
+
+const prompt = `
+You are a strict ATS Resume Analyzer AI.
+
+TASK:
+Compare ONLY the given RESUME and JOB DESCRIPTION.
+
+IMPORTANT RULES:
+- Do NOT assume or add any skills that are not present in JOB DESCRIPTION.
+- Only check resume skills against JOB DESCRIPTION skills.
+- If a skill is in resume but NOT in job description → ignore it.
+- If a skill is in job description but NOT in resume → add to missingSkills.
+- Score must be calculated ONLY based on how many job description skills match resume.
+- Do NOT use general knowledge.
+- Do NOT guess.
+- Be strict and accurate.
+
+RETURN ONLY JSON:
 
 {
  "username":"",
@@ -167,12 +212,8 @@ Return ONLY JSON format:
  "suggestions":[]
 }
 
-Rules:
-- Extract candidate name from resume
-- Identify real skills only
-- Ignore filler words
-- Score based on relevance match
-- Suggestions must be practical
+SCORING RULE:
+atsScore = (matchedSkills / total job description skills) × 100
 
 RESUME:
 ${resumeText}
@@ -180,6 +221,7 @@ ${resumeText}
 JOB DESCRIPTION:
 ${jobDesc}
 `;
+      
 
     /* ---------- AI CALL ---------- */
 
